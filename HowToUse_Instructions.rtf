@@ -1,0 +1,45 @@
+{\rtf1\ansi\ansicpg1252\cocoartf1347\cocoasubrtf570
+{\fonttbl\f0\fswiss\fcharset0 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+\paperw11900\paperh16840\margl1440\margr1440\vieww10800\viewh8400\viewkind0
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural
+
+\f0\b\fs24 \cf0 Setting up the analysis scripts:
+\b0 \
+\
+Copy all directories to a folder on the LMF analysis computer\
+Open MatLab\
+You will see a directory tree/file navigation column, probably on the left of the interface\
+Use this to navigate to the directory you have copied the files to\
+Right click on the bfmatlab directory, \'93Add to Path\'94, \'93Selected folder and subfolders\'94\
+(This has to be done every time you start MatLab, otherwise you have to get someone with administrator rights to add it to the path permanently. If you get an error message in the beginning, it is possible you just forgot to \'93Add to Path\'94)\
+\
+
+\b Setting up the microscopy data for analysis:
+\b0 \
+Copy all .czi files from the SPIM into a directory. All these will be analyzed in one go, and one result file per stack will be produced. You can therefore analyze everything together in one directory, and for example still sort your different conditions afterwards into separate directories for further analysis.\
+\
+
+\b Executing the analysis:\
+
+\b0 In MatLab, open the two files Directory_BatchProcess_13May2016.m and CheckAnalysisOutcome.m\
+There should be program code appearing in the middle of the interface\
+Here, make sure to select the tab for Directory_BatchProcess_13May2016.m\
+In the top of the code, there is a bunch of analysis parameters - most important is that you choose the right channel for nuclei segmentation. Enter the right channel number for this.\
+\
+Binning of 2 should be fine. It works in 3D like usual binning of microscopy data.\
+\
+The other two parameters, dilateSpacer and dilateMeasure should be fine as they are, with values 2 and 4, respectively.\
+\
+Execute the script by either pressing the F5 key on the keyboard, or the big green Play button in the top row. If there is no big green Play button, you have to choose the Editor Tab.\
+\
+Once the batch analysis is complete, you should see a new X.mat file for every embryo that was analyzed. To get the neighbor nuclei distances out of this, use the CheckAnalysisOutcome.m script.\
+\
+Here, you can choose a couple more things in the top section of the code, but most of them should be explained sufficiently in the code. The script, when running successfully, reports on the command line, but also makes a file containing all embryos distances in comma-separated format. You can load this into Excel by import function.\
+\
+
+\b Misusing the script for nuclei counting:
+\b0 \
+In the first script, set your segmentation to be based on DAPI\
+In the second script, choose DAPI as interphase marker, and set a minimum nuc/cyto intensity ratio of 0.5 or so, well below 1. Then it includes ALL the nuclei.\
+When doing this, the distance estimation will not necessarily work well, but you can try.}
