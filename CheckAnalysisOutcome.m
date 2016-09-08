@@ -4,19 +4,19 @@ clear all
 %% --- analysis parameters
 
 % Put in channel number to use as marker for interphase
-% (e.g. Pol II Ser2Phos or PCMA)
+% (e.g. Pol II or PCNA)
 interphaseMarkerChannel = 1;
 
 % Put in channel number from which nuc/cyto ratio intensities should be put
 % out for intensity investigation
-intChannel = 1;
+intChannel = 2;
 
 % Minimum nuc/cyto intensity ratio of the interphase marker to include
 % nucleus in neigbor distance analysis
-minIntRatio = 3;
+minIntRatio = 2;
 
 % Minimum number of nuclei to make valid conclusion about neighbor distance
-minNucCount = 20;
+minNucCount = 15;
 
 % Do you want to see the output of every single file? assign true or false
 showResults = true;
@@ -50,6 +50,8 @@ medianDistanceVec = zeros(1,numResultFiles);
 numValidNuc = zeros(1,numResultFiles);
 
 for ff = 1:numResultFiles
+    
+    try
     
     figure(1)
     
@@ -185,6 +187,9 @@ for ff = 1:numResultFiles
         subplot(2,3,4)
         plot(loadedStruct.cytoInt{intChannel},...
             loadedStruct.nucInt{intChannel},'ko')
+        hold on
+        minMaxSupport = [0,max(loadedStruct.nucInt{intChannel})];
+        plot(minMaxSupport,minMaxSupport,'k--')
         xlabel('Cytoplasmic intensity')
         ylabel('Nuclear intensity')
         
@@ -200,7 +205,7 @@ for ff = 1:numResultFiles
         
         subplot(2,3,6)
         hist(distances,20)
-        xlabel('Intensity ratio Nuc/Cyto')
+        xlabel('Second neighbor distance [\mum]')
         ylabel('Count')
         
         waitforbuttonpress
@@ -213,6 +218,11 @@ for ff = 1:numResultFiles
 
     fprintf(writeFile,'%s,%6.6f,%d\n',listing(ff).name,median_val,numValidNuc(ff));
 
+    catch ME
+        
+        disp('Failure in file.')
+        
+    end
     
     
 end
