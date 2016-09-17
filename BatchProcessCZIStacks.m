@@ -863,7 +863,11 @@ parfor ff = 1:numSourceFiles
             
             % Upon successful completion, set error flag to false, no error!
             errorFlagVec{ff}(kk) = false;
+<<<<<<< HEAD
                         
+=======
+
+>>>>>>> origin/master
         catch message
             
             errorFlagVec{ff}(kk) = true;
