@@ -87,6 +87,8 @@ cytoInt_cell = cell(1,numSourceFiles);
 
 centroid_cell = cell(1,numSourceFiles);
 
+vol_cell = cell(1,numSourceFiles);
+
 if parallel_switch
     fprintf('Starting to process files in parallel.\n')
     fprintf('Progress dealing with individual files not displayed.\n')
@@ -861,7 +863,6 @@ parfor ff = 1:numSourceFiles
             
             % Upon successful completion, set error flag to false, no error!
             errorFlagVec{ff}(kk) = false;
-            errorMessages{ff}(kk) = [];
                         
         catch message
             
@@ -889,6 +890,8 @@ parfor ff = 1:numSourceFiles
     cytoInt_cell{ff} = cytoInt;
     
     centroid_cell{ff} = nucCent;
+    
+    vol_cell{ff} = nucVol;
     
     if parallel_switch
         parfor_progress;
@@ -931,6 +934,7 @@ for ff = 1:numSourceFiles
             saveStruct.cytoInt = cytoInt_cell{ff}{ee};
             
             saveStruct.centroid = centroid_cell{ff}{ee};
+            saveStruct.volume = vol_cell{ff}{ee};
             
             [pathOnly,nameOnly,extensionOnly] = fileparts(sourcePaths{ff});
             

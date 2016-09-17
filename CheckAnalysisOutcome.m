@@ -141,6 +141,10 @@ for ff = 1:numResultFiles
         axis equal
         axis tight
         
+        titleHandle = title(sprintf('File name: %s',listing(ff).name));
+        set(titleHandle,'interpreter','none')
+        
+        
         subplot(2,3,2)
         
         imagesc([0,loadedStruct.stackSize(2).*loadedStruct.voxelSize(2)],...
@@ -160,6 +164,11 @@ for ff = 1:numResultFiles
         axis tight
         
         set(gca,'YDir','normal')
+
+        titleHandle = title(sprintf('Number of colors: %d',...
+            numel(loadedStruct.cytoInt)));
+        set(titleHandle,'interpreter','none')
+
         
         subplot(3,3,3)
         
