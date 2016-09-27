@@ -16,7 +16,7 @@ intChannel = 2;
 minIntRatio = 2;
 
 % Minimum volume of nuclei to be considered, unit is cubic micrometers
-minVolume = 1000;
+minVolume = 300;
 
 % Minimum number of nuclei to make valid conclusion about neighbor distance
 minNucCount = 15;

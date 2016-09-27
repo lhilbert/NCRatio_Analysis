@@ -61,7 +61,7 @@ listing = rdir(fullfile(sourceDir,'**',filesep,'*.czi'));
 
 numSourceFiles = numel(listing); % number of source files
 sourcePaths = cell(1,numSourceFiles); % paths to the source files
-filenames = cell(1,numSourceFiles); % individual file names
+sourceFiles = cell(1,numSourceFiles); % individual file names
 
 % Each file can contain in principle one or several stacks. So we have to
 % store how many stacks are in each given file.
@@ -107,6 +107,8 @@ for ff = 1:numSourceFiles
     
     thisPath = listing(ff).name;
     
+    [~,sourceFiles{ff},~] = fileparts(thisPath);
+
     % --- Make a reader instance
     reader = bfGetReader(thisPath);
     
@@ -114,9 +116,6 @@ for ff = 1:numSourceFiles
     omeMeta = reader.getMetadataStore();
     
     reader.close();
-    
-    numChannels = omeMeta.getChannelCount(0);
-    numImages = omeMeta.getImageCount();
     
     voxelSizeX = omeMeta.getPixelsPhysicalSizeX(0);
     voxelSizeX = voxelSizeX.value(ome.units.UNITS.MICROM);
@@ -137,7 +136,7 @@ parfor ff = 1:numSourceFiles
     
     thisPath = listing(ff).name;
     sourcePaths{ff} = thisPath;
-    
+        
     if ~parallel_switch
         
         fprintf('Accessing file %d of %d files (%s):\n',...
@@ -942,7 +941,7 @@ for ff = 1:numSourceFiles
             
             saveFileName = fullfile(...
                 pathOnly,filesep,'Results',filesep,...
-                sprintf('analyzed_%d_%d.mat',ff,ee));
+                sprintf('analyzed_%s_%d.mat',sourceFiles{ff},ee));
                         
             save(saveFileName,'-struct','saveStruct');
             
