@@ -15,6 +15,9 @@ intChannel = 2;
 % nucleus in neigbor distance analysis
 minIntRatio = 2;
 
+% Minimum volume of nuclei to be considered, unit is cubic micrometers
+minVolume = 1000;
+
 % Minimum number of nuclei to make valid conclusion about neighbor distance
 minNucCount = 15;
 
@@ -77,7 +80,9 @@ for ff = 1:numResultFiles
         
         intRatios = nucInts./cytoInts;
         
-        validNucInds = find(intRatios>=minIntRatio);
+        volumes = loadedStruct.volume;
+        
+        validNucInds = find(intRatios>=minIntRatio & volumes>=minVolume);
         
         numValidNuc(ff) = numel(validNucInds);
         
@@ -123,11 +128,14 @@ for ff = 1:numResultFiles
         
     if showResults
         
+        % Saturate the brightest pixels of the image
+        intLim = prctile(loadedStruct.xmaxProj(:),[1,99]);
+        
         subplot(2,3,1)
         
-        imagesc([0,loadedStruct.stackSize(1).*loadedStruct.voxelSize(1)],...
-            [0,loadedStruct.stackSize(2).*loadedStruct.voxelSize(2)],...
-            loadedStruct.zmaxProj)
+        imagesc([0,loadedStruct.stackSize(2).*loadedStruct.voxelSize(2)],...
+            [0,loadedStruct.stackSize(1).*loadedStruct.voxelSize(1)],...
+            loadedStruct.zmaxProj,intLim)
         
         hold on
         
@@ -147,9 +155,9 @@ for ff = 1:numResultFiles
         
         subplot(2,3,2)
         
-        imagesc([0,loadedStruct.stackSize(2).*loadedStruct.voxelSize(2)],...
+        imagesc([0,loadedStruct.stackSize(1).*loadedStruct.voxelSize(1)],...
             [0,loadedStruct.stackSize(3).*loadedStruct.voxelSize(3)],...
-            loadedStruct.xmaxProj.')
+            loadedStruct.xmaxProj.',intLim)
         
         hold on
         
@@ -172,9 +180,9 @@ for ff = 1:numResultFiles
         
         subplot(3,3,3)
         
-        imagesc([0,loadedStruct.stackSize(1).*loadedStruct.voxelSize(1)],...
+        imagesc([0,loadedStruct.stackSize(2).*loadedStruct.voxelSize(2)],...
             [0,loadedStruct.stackSize(3).*loadedStruct.voxelSize(3)],...
-            loadedStruct.ymaxProj.')
+            loadedStruct.ymaxProj.',intLim)
         
         hold on
         
