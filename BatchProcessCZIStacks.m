@@ -5,6 +5,12 @@ clear all
 % Pixel binning, applies in all three spatial dimensions
 binning = 2;
 
+% Only analyze nuclear and cytoplasmic intensities in maximum contrast
+% slice of a given nucleus? Useful to avoid problems with z-extent of point
+% spread functions
+onlyXY = true;
+
+
 % Which color channel should be used for segmentation?
 segChannel = 1;
 
@@ -59,6 +65,18 @@ sourceDir = uigetdir;
 % Recursively lists all .czi files in the source directory
 listing = rdir(fullfile(sourceDir,'**',filesep,'*.czi'));
 
+% Remove separate-save files
+keepFlags = false(1,numel(listing));
+for kk = 1:numel(listing)
+    
+    [~,namePart,~]= fileparts(listing(kk).name);
+    
+    keepFlags(kk) = ~(namePart(end)==')');
+    
+end
+
+listing = listing(keepFlags);
+
 numSourceFiles = numel(listing); % number of source files
 sourcePaths = cell(1,numSourceFiles); % paths to the source files
 sourceFiles = cell(1,numSourceFiles); % individual file names
@@ -108,7 +126,7 @@ for ff = 1:numSourceFiles
     thisPath = listing(ff).name;
     
     [~,sourceFiles{ff},~] = fileparts(thisPath);
-
+    
     % --- Make a reader instance
     reader = bfGetReader(thisPath);
     
@@ -132,11 +150,11 @@ end
 errorFlagVec = cell(1,numSourceFiles);
 errorMessages = cell(1,numSourceFiles);
 
-parfor ff = 1:numSourceFiles
+for ff = 1:numSourceFiles
     
     thisPath = listing(ff).name;
     sourcePaths{ff} = thisPath;
-        
+    
     if ~parallel_switch
         
         fprintf('Accessing file %d of %d files (%s):\n',...
@@ -218,10 +236,10 @@ parfor ff = 1:numSourceFiles
         end
         
         
-        try % Prevents crash when something is wrong with a specific file
-           
+%         try % Prevents crash when something is wrong with a specific file
+            
             reader = bfGetReader(thisPath);
-
+            
             reader.setSeries(kk-1);
             
             % Read in the raw stack
@@ -706,7 +724,8 @@ parfor ff = 1:numSourceFiles
             end
             
             
-            % Make masks to determine nuclear and cytoplasmic intensities
+            
+            % Make masks to determine cytoplasmic intensity
             
             totalDil = dilateSpacer+dilateMeasure;
             
@@ -714,100 +733,213 @@ parfor ff = 1:numSourceFiles
                 parfor_progress(numNuc(kk));
             end
             
-            for nn = 1:numNuc(kk)
+            if onlyXY
                 
-                % Determine small bounding box (without dilate)
-                smallMinY = nucBBox{kk}{nn}(2)+0.5;
-                smallMinX = nucBBox{kk}{nn}(1)+0.5;
-                smallMinZ = nucBBox{kk}{nn}(3)+0.5;
-                smallMaxY = nucBBox{kk}{nn}(2)+nucBBox{kk}{nn}(5)-0.5;
-                smallMaxX = nucBBox{kk}{nn}(1)+nucBBox{kk}{nn}(4)-0.5;
-                smallMaxZ = nucBBox{kk}{nn}(3)+nucBBox{kk}{nn}(6)-0.5;
+                % --- 2D treatment in maximum contrast slice
                 
-                
-                % Determine extended bounding box (after dilate)
-                fullExtMinY = smallMinY-totalDil;
-                fullExtMinX = smallMinX-totalDil;
-                fullExtMinZ = smallMinZ-totalDil;
-                fullExtMaxY = smallMaxY+totalDil;
-                fullExtMaxX = smallMaxX+totalDil;
-                fullExtMaxZ = smallMaxZ+totalDil;
-                
-                % Limit extended bounding box to within image limits
-                extMinY = max(1,fullExtMinY);
-                yLoDiff = extMinY - fullExtMinY;
-                extMinX = max(1,fullExtMinX);
-                xLoDiff = extMinX - fullExtMinX;
-                extMinZ = max(1,fullExtMinZ);
-                zLoDiff = extMinZ - fullExtMinZ;
-                extMaxY = min(stackSizeY,fullExtMaxY);
-                yHiDiff = fullExtMaxY - extMaxY;
-                extMaxX = min(stackSizeX,fullExtMaxX);
-                xHiDiff = fullExtMaxX - extMaxX;
-                extMaxZ = min(stackSizeZ,fullExtMaxZ);
-                zHiDiff = fullExtMaxZ - extMaxZ;
-                
-                % Extended bounding box size
-                extSizeY = extMaxY - extMinY + 1;
-                extSizeX = extMaxX - extMinX + 1;
-                extSizeZ = extMaxZ - extMinZ + 1;
-                
-                % Nucleus mask, will be eroded into nucleus
-                nuclMask = false(extSizeY,extSizeX,extSizeZ);
-                nuclMask((1+totalDil-yLoDiff):(end-totalDil+yHiDiff),...
-                    (1+totalDil-xLoDiff):(end-totalDil+xHiDiff),...
-                    (1+totalDil-zLoDiff):(end-totalDil+zHiDiff))...
-                    = nucImg{kk}{nn};
-                
-                % Inclusion mask for cytoplasm shell, growing from nucleus
-                % under investigation only
-                inclMask = nuclMask;
-                
-                % Exclusion mask for cytoplasm shell, growing from all
-                % segmented objects
-                exclMask = segArray(extMinY:extMaxY,...
-                    extMinX:extMaxX,...
-                    extMinZ:extMaxZ);
-                
-                dilateNeighborhood = zeros(3,3,3);
-                dilateNeighborhood(2,2,2) = 1;
-                dilateNeighborhood(1,2,2) = 1;
-                dilateNeighborhood(3,2,2) = 1;
-                dilateNeighborhood(2,1,2) = 1;
-                dilateNeighborhood(2,3,2) = 1;
-                dilateNeighborhood(2,2,1) = 1;
-                dilateNeighborhood(2,2,3) = 1;
-                
-                for ee = 1:erodeSteps
-                    nuclMask = imerode(nuclMask,dilateNeighborhood);
-                end
-                
-                for dd = 1:dilateSpacer
-                    inclMask = imdilate(inclMask,dilateNeighborhood);
-                    exclMask = imdilate(exclMask,dilateNeighborhood);
-                end
-                
-                for dd = 1:dilateMeasure
-                    inclMask = imdilate(inclMask,dilateNeighborhood);
-                end
-                
-                measureMask = inclMask & ~exclMask;
-                
-                for cc = 1:numChannels
+                for nn = 1:numNuc(kk)
                     
-                    % -- Determine nuclear to cytoplasmic ratios
+                    % Determine small bounding box (without dilate)
+                    smallMinY = nucleiBoundingBox{nn}(2)+0.5;
+                    smallMinX = nucleiBoundingBox{nn}(1)+0.5;
+                    MinZ = nucleiBoundingBox{nn}(3)+0.5;
+                    smallMaxY = nucleiBoundingBox{nn}(2)+nucleiBoundingBox{nn}(5)-0.5;
+                    smallMaxX = nucleiBoundingBox{nn}(1)+nucleiBoundingBox{nn}(4)-0.5;
+                    MaxZ = nucleiBoundingBox{nn}(3)+nucleiBoundingBox{nn}(6)-0.5;
+                    
+                    % Determine extended bounding box (after dilate)
+                    fullExtMinY = smallMinY-totalDil;
+                    fullExtMinX = smallMinX-totalDil;
+                    fullExtMaxY = smallMaxY+totalDil;
+                    fullExtMaxX = smallMaxX+totalDil;
+                    
+                    % Limit extended bounding box to within image limits
+                    extMinY = max(1,fullExtMinY);
+                    yLoDiff = extMinY - fullExtMinY;
+                    extMinX = max(1,fullExtMinX);
+                    xLoDiff = extMinX - fullExtMinX;
+                    extMaxY = min(stackSizeY,fullExtMaxY);
+                    yHiDiff = fullExtMaxY - extMaxY;
+                    extMaxX = min(stackSizeX,fullExtMaxX);
+                    xHiDiff = fullExtMaxX - extMaxX;
+                    
+                    % Extended bounding box size
+                    extSizeY = extMaxY - extMinY + 1;
+                    extSizeX = extMaxX - extMinX + 1;
+                    SizeZ = MaxZ - MinZ + 1;
                     
                     cutoutImage = binnedStack{cc}(extMinY:extMaxY,...
                         extMinX:extMaxX,...
-                        extMinZ:extMaxZ);
+                        MinZ:MaxZ);
                     
-                    nucInt{kk}{cc}(nn) = mean(cutoutImage(nuclMask));
-                    cytoInt{kk}{cc}(nn) = mean(cutoutImage(measureMask));
+                    % Find maximum contrast slice
+                    
+                    contrastVec = zeros(1,rawStackSizeZ);
+                    
+                    for ll = 1:SizeZ
+                        
+                        section = cutoutImage(:,:,ll);
+                        
+                        diffMatrix = ...
+                            (section(1:end-1,1:end-1)-section(2:end,2:end)).^2;
+                        
+                        contrastVec(ll) = sqrt(mean(diffMatrix(:)));
+                        
+                    end
+                    
+                    [~,maxContrastInd] = max(contrastVec);
+                    
+                    maxContrastImage = ...
+                        squeeze(cutoutImage(:,:,maxContrastInd));
+                    
+                    % Inclusion mask
+                    inclMask = zeros(extSizeY,extSizeX);
+                    inclMask((1+totalDil-yLoDiff):(end-totalDil+yHiDiff),...
+                        (1+totalDil-xLoDiff):(end-totalDil+xHiDiff))...
+                        = squeeze(nucleiImage{nn}(:,:,maxContrastInd));
+                    
+                    % Nucleus mask
+                    nucMask = inclMask>0;
+                    
+                    % Exclusion mask
+                    exclMask = squeeze(segArray(extMinY:extMaxY,...
+                        extMinX:extMaxX,...
+                        MinZ+maxContrastInd-1));
+                    
+                    dilateNeighborhood = zeros(3,3);
+                    dilateNeighborhood(2,2) = 1;
+                    dilateNeighborhood(1,2) = 1;
+                    dilateNeighborhood(3,2) = 1;
+                    dilateNeighborhood(2,1) = 1;
+                    dilateNeighborhood(2,3) = 1;
+                    
+                    for ee = 1:erodeSteps
+                        nucMask = imerode(nucMask,dilateNeighborhood);
+                    end
+                    
+                    for dd = 1:dilateSpacer
+                        inclMask = imdilate(inclMask,dilateNeighborhood);
+                        exclMask = imdilate(exclMask,dilateNeighborhood);
+                    end
+                    
+                    for dd = 1:dilateMeasure
+                        inclMask = imdilate(inclMask,dilateNeighborhood);
+                    end
+                    
+                    measureMask = inclMask & ~exclMask;
+                    
+                    for cc = 1:numChannels
+                        
+                        % -- Determine nuclear and cytoplasmic intensities
+                        
+                        cytoInt{kk}{cc}(nn) = mean(maxContrastImage(measureMask));
+                        nucInt{kk}{cc}(nn) = mean(maxContrastImage(nucMask));
+                        
+                    end
+                    
+                    if ~parallel_switch
+                        parfor_progress;
+                    end
                     
                 end
                 
-                if ~parallel_switch
-                    parfor_progress;
+            else
+                
+                % Full 3D treatment
+                
+                for nn = 1:numNuc(kk)
+                    
+                    % Determine small bounding box (without dilate)
+                    smallMinY = nucleiBoundingBox{nn}(2)+0.5;
+                    smallMinX = nucleiBoundingBox{nn}(1)+0.5;
+                    smallMinZ = nucleiBoundingBox{nn}(3)+0.5;
+                    smallMaxY = nucleiBoundingBox{nn}(2)+nucleiBoundingBox{nn}(5)-0.5;
+                    smallMaxX = nucleiBoundingBox{nn}(1)+nucleiBoundingBox{nn}(4)-0.5;
+                    smallMaxZ = nucleiBoundingBox{nn}(3)+nucleiBoundingBox{nn}(6)-0.5;
+                    
+                    % Determine extended bounding box (after dilate)
+                    fullExtMinY = smallMinY-totalDil;
+                    fullExtMinX = smallMinX-totalDil;
+                    fullExtMinZ = smallMinZ-totalDil;
+                    fullExtMaxY = smallMaxY+totalDil;
+                    fullExtMaxX = smallMaxX+totalDil;
+                    fullExtMaxZ = smallMaxZ+totalDil;
+                    
+                    % Limit extended bounding box to within image limits
+                    extMinY = max(1,fullExtMinY);
+                    yLoDiff = extMinY - fullExtMinY;
+                    extMinX = max(1,fullExtMinX);
+                    xLoDiff = extMinX - fullExtMinX;
+                    extMinZ = max(1,fullExtMinZ);
+                    zLoDiff = extMinZ - fullExtMinZ;
+                    extMaxY = min(stackSizeY,fullExtMaxY);
+                    yHiDiff = fullExtMaxY - extMaxY;
+                    extMaxX = min(stackSizeX,fullExtMaxX);
+                    xHiDiff = fullExtMaxX - extMaxX;
+                    extMaxZ = min(stackSizeZ,fullExtMaxZ);
+                    zHiDiff = fullExtMaxZ - extMaxZ;
+                    
+                    % Extended bounding box size
+                    extSizeY = extMaxY - extMinY + 1;
+                    extSizeX = extMaxX - extMinX + 1;
+                    extSizeZ = extMaxZ - extMinZ + 1;
+                    
+                    % Inclusion mask
+                    inclMask = zeros(extSizeY,extSizeX,extSizeZ);
+                    inclMask((1+totalDil-yLoDiff):(end-totalDil+yHiDiff),...
+                        (1+totalDil-xLoDiff):(end-totalDil+xHiDiff),...
+                        (1+totalDil-zLoDiff):(end-totalDil+zHiDiff))...
+                        = nucleiImage{nn};
+                    
+                    % Nucleus mask
+                    nucMask = inclMask>0;
+                    
+                    % Exclusion mask
+                    exclMask = segArray(extMinY:extMaxY,...
+                        extMinX:extMaxX,...
+                        extMinZ:extMaxZ);
+                    
+                    dilateNeighborhood = zeros(3,3,3);
+                    dilateNeighborhood(2,2,2) = 1;
+                    dilateNeighborhood(1,2,2) = 1;
+                    dilateNeighborhood(3,2,2) = 1;
+                    dilateNeighborhood(2,1,2) = 1;
+                    dilateNeighborhood(2,3,2) = 1;
+                    dilateNeighborhood(2,2,1) = 1;
+                    dilateNeighborhood(2,2,3) = 1;
+                    
+                    for ee = 1:erodeSteps
+                        nucMask = imerode(nucMask,dilateNeighborhood);
+                    end
+                    
+                    for dd = 1:dilateSpacer
+                        inclMask = imdilate(inclMask,dilateNeighborhood);
+                        exclMask = imdilate(exclMask,dilateNeighborhood);
+                    end
+                    
+                    for dd = 1:dilateMeasure
+                        inclMask = imdilate(inclMask,dilateNeighborhood);
+                    end
+                    
+                    measureMask = inclMask & ~exclMask;
+                    
+                    for cc = 1:numChannels
+                        
+                        % -- Determine nuclear and cytoplasmic intensities
+                        
+                        cutoutImage = binnedStack{cc}(extMinY:extMaxY,...
+                            extMinX:extMaxX,...
+                            extMinZ:extMaxZ);
+                        
+                        cytoInt{kk}{cc}(nn) = mean(cutoutImage(measureMask));
+                        nucInt{kk}{cc}(nn) = mean(cutoutImage(nucMask));
+                        
+                    end
+                    
+                    if ~parallel_switch
+                        parfor_progress;
+                    end
+                    
                 end
                 
             end
@@ -862,15 +994,15 @@ parfor ff = 1:numSourceFiles
             
             % Upon successful completion, set error flag to false, no error!
             errorFlagVec{ff}(kk) = false;
-
-        catch message
             
-            errorFlagVec{ff}(kk) = true;
-            errorMessages{ff}{kk} = message;
-            
-            fprintf('Image segmentation error in step %d.\n',kk)
-            
-        end
+%         catch message
+%             
+%             errorFlagVec{ff}(kk) = true;
+%             errorMessages{ff}{kk} = message;
+%             
+%             fprintf('Image segmentation error in step %d.\n',kk)
+%             
+%         end
         
     end
     
@@ -942,7 +1074,7 @@ for ff = 1:numSourceFiles
             saveFileName = fullfile(...
                 pathOnly,filesep,'Results',filesep,...
                 sprintf('analyzed_%s_%d.mat',sourceFiles{ff},ee));
-                        
+            
             save(saveFileName,'-struct','saveStruct');
             
         end
