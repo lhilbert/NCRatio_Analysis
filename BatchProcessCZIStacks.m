@@ -236,7 +236,7 @@ for ff = 1:numSourceFiles
         end
         
         
-%         try % Prevents crash when something is wrong with a specific file
+        try % Prevents crash when something is wrong with a specific file
             
             reader = bfGetReader(thisPath);
             
@@ -832,6 +832,9 @@ for ff = 1:numSourceFiles
                         
                         % -- Determine nuclear and cytoplasmic intensities
                         
+                        quantImage = binnedStack{cc}(...
+                            extMinY:extMaxY,extMinX:extMaxX,maxContrastInd);
+                                            
                         cytoInt{kk}{cc}(nn) = mean(maxContrastImage(measureMask));
                         nucInt{kk}{cc}(nn) = mean(maxContrastImage(nucMask));
                         
@@ -995,14 +998,14 @@ for ff = 1:numSourceFiles
             % Upon successful completion, set error flag to false, no error!
             errorFlagVec{ff}(kk) = false;
             
-%         catch message
-%             
-%             errorFlagVec{ff}(kk) = true;
-%             errorMessages{ff}{kk} = message;
-%             
-%             fprintf('Image segmentation error in step %d.\n',kk)
-%             
-%         end
+        catch message
+            
+            errorFlagVec{ff}(kk) = true;
+            errorMessages{ff}{kk} = message;
+            
+            fprintf('Image segmentation error in step %d.\n',kk)
+            
+        end
         
     end
     
