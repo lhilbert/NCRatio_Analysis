@@ -833,7 +833,8 @@ for ff = 1:numSourceFiles
                         % -- Determine nuclear and cytoplasmic intensities
                         
                         quantImage = binnedStack{cc}(...
-                            extMinY:extMaxY,extMinX:extMaxX,maxContrastInd);
+                            extMinY:extMaxY,extMinX:extMaxX,...
+                            MinZ+maxContrastInd-1);
                                             
                         cytoInt{kk}{cc}(nn) = mean(maxContrastImage(measureMask));
                         nucInt{kk}{cc}(nn) = mean(maxContrastImage(nucMask));
