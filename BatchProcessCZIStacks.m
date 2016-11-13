@@ -838,7 +838,7 @@ for ff = 1:numSourceFiles
                             MinZ+maxContrastInd-1);
                                             
                         cytoInt{kk}{cc}(nn) = mean(quantImage(measureMask));
-                        nucInt{kk}{cc}(nn) = mean(quantrastImage(nucMask));
+                        nucInt{kk}{cc}(nn) = mean(quantImage(nucMask));
                         
                     end
                     
