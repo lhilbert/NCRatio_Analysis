@@ -768,7 +768,8 @@ for ff = 1:numSourceFiles
                     extSizeX = extMaxX - extMinX + 1;
                     SizeZ = MaxZ - MinZ + 1;
                     
-                    cutoutImage = binnedStack{cc}(extMinY:extMaxY,...
+                    cutoutImage = binnedStack{segChannel}(...
+                        extMinY:extMaxY,...
                         extMinX:extMaxX,...
                         MinZ:MaxZ);
                     
@@ -836,8 +837,8 @@ for ff = 1:numSourceFiles
                             extMinY:extMaxY,extMinX:extMaxX,...
                             MinZ+maxContrastInd-1);
                                             
-                        cytoInt{kk}{cc}(nn) = mean(maxContrastImage(measureMask));
-                        nucInt{kk}{cc}(nn) = mean(maxContrastImage(nucMask));
+                        cytoInt{kk}{cc}(nn) = mean(quantImage(measureMask));
+                        nucInt{kk}{cc}(nn) = mean(quantrastImage(nucMask));
                         
                     end
                     
